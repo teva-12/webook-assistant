@@ -5,13 +5,20 @@ __pycache__/
 .venv/
 venv/
 
-# Secrets and environment
+# Environment and secrets
 .env
 .env.*
+!.env.example
 
-# Logs and local data
-logs/
-data/
+# Logs, local data and reports
+logs/*
+!logs/.gitkeep
+data/*
+!data/.gitkeep
+reports/*
+!reports/.gitkeep
+
+# Database files
 *.db
 *.sqlite3
 
@@ -22,3 +29,6 @@ storage_state.json
 
 # VS Code
 .vscode/
+
+# Pytest
+.pytest_cache/

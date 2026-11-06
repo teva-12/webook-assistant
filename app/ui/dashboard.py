@@ -1,11 +1,27 @@
+
 from rich import box
 from rich.align import Align
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
+from rich.text import Text
 
 
 console = Console()
+
+STAGES = [
+    ("ready", "Ready"),
+    ("waiting_for_user", "Waiting for User"),
+    ("ticket_selection", "Ticket Selection"),
+    ("checkout", "Checkout"),
+]
+
+
+def format_elapsed(seconds: float) -> str:
+    total = max(0, int(seconds))
+    minutes, secs = divmod(total, 60)
+    hours, minutes = divmod(minutes, 60)
+    return f"{hours:02d}:{minutes:02d}:{secs:02d}"
 
 
 def display_dashboard(
@@ -15,59 +31,99 @@ def display_dashboard(
 ):
     console.clear()
 
-    header = """
- __        __ ____  ____   ___   ___  _  __
- \\ \\      / /| __ )|  _ \\ / _ \\ / _ \\| |/ /
-  \\ \\ /\\ / / |  _ \\| |_) | | | | | | | ' /
-   \\ V  V /  | |_) |  _ <| |_| | |_| | . \\
-    \\_/\\_/   |____/|_| \\_\\\\___/ \\___/|_|\\_\\
-    """
+    header = Text()
+    header.append("WEBOOK ", style="bold cyan")
+    header.append("BOOKING ASSISTANT", style="bold white")
+    header.append("\nManual Session Management", style="dim")
 
     console.print(
         Panel(
             Align.center(header, vertical="middle"),
-            title="[bold cyan]BOOKING ASSISTANT[/bold cyan]",
             border_style="cyan",
+            padding=(1, 2),
         )
     )
 
-    table = Table(
-        title="Session Overview",
-        box=box.ROUNDED,
-        expand=True,
+    status_style = (
+        "bold green"
+        if status.lower() == "tracking"
+        else "bold yellow"
+        if status.lower() == "safety stop"
+        else "bold cyan"
     )
 
-    table.add_column("Property", style="cyan")
-    table.add_column("Value", style="white")
+    overview = Table(
+        title="SESSION OVERVIEW",
+        box=box.ROUNDED,
+        expand=True,
+        border_style="blue",
+    )
+    overview.add_column("Metric", style="cyan")
+    overview.add_column("Value", style="white")
 
-    table.add_row("Status", status)
-    table.add_row("Current Stage", current_stage)
-    table.add_row("Elapsed Time", f"{elapsed_seconds:.2f} seconds")
+    overview.add_row("Session Status", f"[{status_style}]{status}[/]")
+    overview.add_row("Current Stage", current_stage.replace("_", " ").title())
+    overview.add_row("Elapsed Time", f"[bold]{format_elapsed(elapsed_seconds)}[/]")
 
-    console.print(table)
+    console.print(overview)
+
+    stage_table = Table(
+        title="BOOKING STAGES",
+        box=box.ROUNDED,
+        expand=True,
+        border_style="blue",
+    )
+    stage_table.add_column("Stage", style="white")
+    stage_table.add_column("State", justify="right")
+
+    for stage_key, stage_label in STAGES:
+        if current_stage == stage_key:
+            stage_table.add_row(
+                stage_label,
+                "[bold green]● CURRENT[/]",
+            )
+        else:
+            stage_table.add_row(
+                stage_label,
+                "[dim]○ NOT ACTIVE[/]",
+            )
+
+    console.print(stage_table)
 
     preferences = Table(
-        title="Ticket Preferences",
+        title="TICKET PREFERENCES",
         box=box.ROUNDED,
         expand=True,
+        border_style="blue",
     )
-
     preferences.add_column("Setting", style="cyan")
-    preferences.add_column("Preference", style="white")
+    preferences.add_column("Configured Value", style="white")
 
     preferences.add_row("Quantity", "2 tickets")
-    preferences.add_row("First Choice", "[green]Bronze[/green]")
-    preferences.add_row("Fallback", "[yellow]Silver (approval required)[/yellow]")
-    preferences.add_row("Payment", "[bold red]Manual only[/bold red]")
+    preferences.add_row("Preferred Category", "[green]Bronze[/]")
+    preferences.add_row("Fallback Category", "[yellow]Silver — approval required[/]")
+    preferences.add_row("Adjacent Seats", "Required")
+    preferences.add_row("Payment", "[bold red]Manual only[/]")
 
     console.print(preferences)
 
+    safety_message = (
+        "[green]Manual session tracking enabled[/]\n"
+        "[yellow]No automated Webook access or queue bypass[/]\n"
+        "[red]Checkout is a safety stop. Payment remains manual.[/]"
+    )
+
     console.print(
         Panel(
-            "[green]Manual session tracking enabled[/green]\n"
-            "[yellow]No automated access to Webook[/yellow]\n"
-            "[red]Payment and final purchase remain under user control[/red]",
-            title="Safety Controls",
+            safety_message,
+            title="[bold]SAFETY CONTROLS[/]",
             border_style="green",
+            padding=(1, 2),
+        )
+    )
+
+    console.print(
+        Align.center(
+            "[dim]Use the numbered menu below to update the session stage.[/]",
         )
     )

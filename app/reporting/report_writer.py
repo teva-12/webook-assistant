@@ -1,4 +1,3 @@
-
 import html
 import json
 from pathlib import Path
@@ -50,7 +49,9 @@ def save_html_report(
         else "neutral"
     )
 
+    # Stage summary rows
     stage_rows = ""
+
     for item in report.get("stage_summary", []):
         stage_rows += f"""
         <tr>
@@ -70,7 +71,9 @@ def save_html_report(
         </tr>
         """
 
+    # Session timeline rows
     timeline_rows = ""
+
     for index, item in enumerate(report.get("stages", []), start=1):
         timeline_rows += f"""
         <tr>
@@ -82,12 +85,18 @@ def save_html_report(
         """
 
     if not stage_rows:
-        stage_rows = '<tr><td colspan="4">No stage data available.</td></tr>'
+        stage_rows = (
+            '<tr><td colspan="4">No stage data available.</td></tr>'
+        )
 
     if not timeline_rows:
-        timeline_rows = '<tr><td colspan="4">No session activity recorded.</td></tr>'
+        timeline_rows = (
+            '<tr><td colspan="4">No session activity recorded.</td></tr>'
+        )
 
+    # Safety notice
     safety_section = ""
+
     if is_safety_stop:
         safety_note = safe(
             report.get(
@@ -95,6 +104,7 @@ def save_html_report(
                 "Checkout is a safety stop. No payment or purchase was performed.",
             )
         )
+
         safety_section = f"""
         <section class="safety-notice">
             <div class="notice-icon">!</div>
@@ -105,12 +115,52 @@ def save_html_report(
         </section>
         """
 
-    generated_at = safe(report.get("generated_at", "Not available"))
-    total_duration = safe(report.get("total_duration_formatted", "00:00:00"))
-    total_seconds = safe(report.get("total_duration_seconds", 0))
-    stage_count = safe(report.get("stage_count", 0))
-    final_stage = safe(report.get("final_stage") or "None")
+    # Ticket evaluation rows
+    evaluation_rows = ""
 
+    for index, item in enumerate(
+        report.get("ticket_evaluations", []),
+        start=1,
+    ):
+        evaluation_rows += f"""
+        <tr>
+            <td>{index}</td>
+            <td>{safe(item.get("bronze_available_count", 0))}</td>
+            <td>{safe("Yes" if item.get("bronze_adjacent_seats") else "No")}</td>
+            <td>{safe(item.get("silver_available_count", 0))}</td>
+            <td>{safe("Yes" if item.get("silver_adjacent_seats") else "No")}</td>
+            <td>{safe((item.get("recommended_category") or "None").upper())}</td>
+            <td>{safe(item.get("result", "Not selected").replace("_", " ").title())}</td>
+        </tr>
+        """
+
+    if not evaluation_rows:
+        evaluation_rows = (
+            '<tr><td colspan="7">No ticket evaluations recorded.</td></tr>'
+        )
+
+    # Report information
+    generated_at = safe(
+        report.get("generated_at", "Not available")
+    )
+
+    total_duration = safe(
+        report.get("total_duration_formatted", "00:00:00")
+    )
+
+    total_seconds = safe(
+        report.get("total_duration_seconds", 0)
+    )
+
+    stage_count = safe(
+        report.get("stage_count", 0)
+    )
+
+    final_stage = safe(
+        report.get("final_stage") or "None"
+    )
+
+    # HTML document
     document = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -118,6 +168,7 @@ def save_html_report(
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Booking Assistant session report">
     <title>Booking Assistant | Session Report</title>
+
     <style>
         :root {{
             color-scheme: dark;
@@ -132,7 +183,9 @@ def save_html_report(
             --success: #34d399;
         }}
 
-        * {{ box-sizing: border-box; }}
+        * {{
+            box-sizing: border-box;
+        }}
 
         body {{
             margin: 0;
@@ -169,7 +222,8 @@ def save_html_report(
             font-size: clamp(26px, 5vw, 36px);
         }}
 
-        .subtitle, .muted {{
+        .subtitle,
+        .muted {{
             color: var(--muted);
             font-size: 13px;
         }}
@@ -180,11 +234,24 @@ def save_html_report(
             font-size: 13px;
             font-weight: 700;
             white-space: nowrap;
+            margin-bottom: 12px;
+            text-align: center;
         }}
 
-        .warning {{ background: #422f12; color: var(--warning); }}
-        .success {{ background: #103b30; color: var(--success); }}
-        .neutral {{ background: #26344b; color: #cbd5e1; }}
+        .warning {{
+            background: #422f12;
+            color: var(--warning);
+        }}
+
+        .success {{
+            background: #103b30;
+            color: var(--success);
+        }}
+
+        .neutral {{
+            background: #26344b;
+            color: #cbd5e1;
+        }}
 
         .metrics {{
             display: grid;
@@ -193,13 +260,16 @@ def save_html_report(
             margin-bottom: 22px;
         }}
 
-        .card, .section {{
+        .card,
+        .section {{
             background: var(--panel);
             border: 1px solid var(--border);
             border-radius: 15px;
         }}
 
-        .card {{ padding: 21px; }}
+        .card {{
+            padding: 21px;
+        }}
 
         .metric-label {{
             color: var(--muted);
@@ -255,7 +325,9 @@ def save_html_report(
             font-size: 14px;
         }}
 
-        .table-wrap {{ overflow-x: auto; }}
+        .table-wrap {{
+            overflow-x: auto;
+        }}
 
         table {{
             width: 100%;
@@ -264,7 +336,8 @@ def save_html_report(
             text-align: left;
         }}
 
-        th, td {{
+        th,
+        td {{
             padding: 14px 12px;
             border-bottom: 1px solid var(--border);
             font-size: 13px;
@@ -313,11 +386,26 @@ def save_html_report(
         }}
 
         @media (max-width: 650px) {{
-            body {{ padding: 22px 12px; }}
-            header {{ align-items: flex-start; flex-direction: column; }}
-            .metrics {{ grid-template-columns: 1fr; }}
-            .metric-value {{ font-size: 23px; }}
-            .section {{ padding: 16px; }}
+            body {{
+                padding: 22px 12px;
+            }}
+
+            header {{
+                align-items: flex-start;
+                flex-direction: column;
+            }}
+
+            .metrics {{
+                grid-template-columns: 1fr;
+            }}
+
+            .metric-value {{
+                font-size: 23px;
+            }}
+
+            .section {{
+                padding: 16px;
+            }}
         }}
 
         @media print {{
@@ -331,22 +419,39 @@ def save_html_report(
                 --panel-light: #e5e7eb;
             }}
 
-            body {{ padding: 0; }}
-            .print-button {{ display: none; }}
-            .card, .section {{ break-inside: avoid; }}
+            body {{
+                padding: 0;
+            }}
+
+            .print-button {{
+                display: none;
+            }}
+
+            .card,
+            .section {{
+                break-inside: avoid;
+            }}
         }}
     </style>
 </head>
+
 <body>
     <main class="container">
+
         <header>
             <div>
                 <div class="eyebrow">Session Analytics</div>
                 <h1>Booking Assistant</h1>
-                <div class="subtitle">Session performance and activity report</div>
+                <div class="subtitle">
+                    Session performance and activity report
+                </div>
             </div>
+
             <div>
-                <div class="status {status_class}">{safe(status_label)}</div>
+                <div class="status {status_class}">
+                    {safe(status_label)}
+                </div>
+
                 <button class="print-button" onclick="window.print()">
                     Print / Save PDF
                 </button>
@@ -355,17 +460,43 @@ def save_html_report(
 
         {safety_section}
 
+        <section class="section">
+            <h2>Ticket Evaluation Results</h2>
+
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Bronze Count</th>
+                            <th>Bronze Adjacent</th>
+                            <th>Silver Count</th>
+                            <th>Silver Adjacent</th>
+                            <th>Recommendation</th>
+                            <th>Decision</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        {evaluation_rows}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
         <section class="metrics">
             <div class="card">
                 <div class="metric-label">Total Duration</div>
                 <div class="metric-value">{total_duration}</div>
                 <div class="muted">{total_seconds} seconds</div>
             </div>
+
             <div class="card">
                 <div class="metric-label">Recorded Stages</div>
                 <div class="metric-value">{stage_count}</div>
                 <div class="muted">Stage records in this session</div>
             </div>
+
             <div class="card">
                 <div class="metric-label">Final Stage</div>
                 <div class="metric-value">{final_stage}</div>
@@ -375,6 +506,7 @@ def save_html_report(
 
         <section class="section">
             <h2>Stage Summary</h2>
+
             <div class="table-wrap">
                 <table>
                     <thead>
@@ -385,13 +517,17 @@ def save_html_report(
                             <th>Session Share</th>
                         </tr>
                     </thead>
-                    <tbody>{stage_rows}</tbody>
+
+                    <tbody>
+                        {stage_rows}
+                    </tbody>
                 </table>
             </div>
         </section>
 
         <section class="section">
             <h2>Session Timeline</h2>
+
             <div class="table-wrap">
                 <table>
                     <thead>
@@ -402,13 +538,17 @@ def save_html_report(
                             <th>Exact Time</th>
                         </tr>
                     </thead>
-                    <tbody>{timeline_rows}</tbody>
+
+                    <tbody>
+                        {timeline_rows}
+                    </tbody>
                 </table>
             </div>
         </section>
 
         <section class="section">
             <h2>Report Information</h2>
+
             <div class="muted">Generated at (UTC)</div>
             <div>{generated_at}</div>
         </section>
@@ -417,6 +557,7 @@ def save_html_report(
             Booking Assistant · Manual Session Tracking ·
             No automated purchase or payment was performed.
         </footer>
+
     </main>
 </body>
 </html>

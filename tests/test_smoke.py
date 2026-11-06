@@ -41,15 +41,17 @@ def test_client_booking_preferences():
     assert preferences.require_adjacent_seats is True
     assert preferences.fallback_requires_approval is True
     assert preferences.payment_is_manual is True
-
-from app.booking.category_policy import choose_category
+from app.booking.category_policy import (
+    CategoryAvailability,
+    choose_category,
+)
 from app.core.models import TicketCategory
 
 
 def test_bronze_is_selected_first():
     decision = choose_category(
-        bronze_available=True,
-        silver_available=True,
+        bronze=CategoryAvailability(2, True),
+        silver=CategoryAvailability(2, True),
     )
 
     assert decision.category == TicketCategory.BRONZE
@@ -58,8 +60,8 @@ def test_bronze_is_selected_first():
 
 def test_silver_requires_user_approval():
     decision = choose_category(
-        bronze_available=False,
-        silver_available=True,
+        bronze=CategoryAvailability(2, False),
+        silver=CategoryAvailability(2, True),
     )
 
     assert decision.category == TicketCategory.SILVER
@@ -68,12 +70,14 @@ def test_silver_requires_user_approval():
 
 def test_no_category_available():
     decision = choose_category(
-        bronze_available=False,
-        silver_available=False,
+        bronze=CategoryAvailability(1, False),
+        silver=CategoryAvailability(1, False),
     )
 
     assert decision.category is None
     assert decision.requires_approval is False
+
+
 
 from app.booking.safety_guard import can_continue
 from app.core.models import BookingStage

@@ -1,4 +1,5 @@
 
+import webbrowser
 from time import monotonic
 
 from rich import box
@@ -8,7 +9,9 @@ from rich.prompt import Prompt
 from rich.table import Table
 
 from app.core.models import BookingStage
+from app.core.config import settings, validate_settings
 from app.booking.safety_guard import can_continue
+from app.browser.launcher import open_event_page
 from app.monitoring.stage_tracker import StageTracker
 from app.monitoring.stage_transitions import InvalidTransitionError
 from app.reporting.report_builder import build_report
@@ -41,12 +44,24 @@ def display_menu():
     menu.add_row("2", "Waiting for user")
     menu.add_row("3", "Ticket selection")
     menu.add_row("4", "Checkout — Safety Stop")
+    menu.add_row("5", "Open Webook event page")
     menu.add_row("Q", "Finish session")
 
     console.print(menu)
 
 
 def main():
+    try:
+        validate_settings()
+    except ValueError as error:
+        console.print(
+            Panel(
+                f"[bold red]Configuration error:[/]\n{error}",
+                border_style="red",
+            )
+        )
+        return
+
     tracker = StageTracker()
     current_stage = BookingStage.READY
 
@@ -77,12 +92,33 @@ def main():
             tracker.stop()
             break
 
+        if choice == "5":
+            try:
+                opened = open_event_page(settings.event_url)
+
+                if opened:
+                    console.print(
+                        "[bold green]Event page opened in your browser.[/]"
+                    )
+                else:
+                    console.print(
+                        "[bold yellow]Could not open the browser automatically.[/]"
+                    )
+
+            except (ValueError, webbrowser.Error) as error:
+                console.print(
+                    f"[bold red]Could not open event page: {error}[/]"
+                )
+
+            Prompt.ask("Press Enter to return to the dashboard", default="")
+            continue
+
         next_stage = STAGE_OPTIONS.get(choice)
 
         if next_stage is None:
             console.print(
                 Panel(
-                    "[bold red]Invalid option. Please choose 1, 2, 3, 4, or Q.[/]",
+                    "[bold red]Invalid option. Please choose 1, 2, 3, 4, 5, or Q.[/]",
                     border_style="red",
                 )
             )
@@ -124,7 +160,7 @@ def main():
 
     console.print(
         Panel(
-            "[bold green]Session finished successfully.[/]\n\n"
+            "[bold green]Session ended. Report generated.[/]\n\n"
             f"JSON Report: {report_path}\n"
             f"HTML Report: {html_report_path}",
             title="Session Summary",

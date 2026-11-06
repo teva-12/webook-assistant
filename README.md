@@ -1,27 +1,24 @@
 ﻿# Webook Booking Assistant
 
-A controlled browser automation proof of concept for monitoring the official Webook booking flow.
+A Python proof of concept for manually tracking a ticket-booking session.
 
-## Current Scope
+## Current Features
 
-- Open the configured event page using Playwright.
-- Monitor visible booking stages.
-- Measure time spent in each stage.
-- Notify the user when manual action is required.
-- Keep login and payment under the user's control.
+- Manual booking-stage tracking.
+- Booking preferences for Bronze and Silver categories.
+- Explicit approval for fallback category selection.
+- Stage duration measurement.
+- JSON session reports.
+- Safety stop at checkout.
 
 ## Safety Boundaries
 
 - No queue bypass or priority manipulation.
 - No CAPTCHA or anti-bot circumvention.
-- No forged, extracted, or replayed authentication tokens.
-- No excessive requests or parallel sessions.
-- No automatic payment or final purchase.
-- Stop when a bot challenge or unexpected state is detected.
-
-## Current Mode
-
-`monitor_only`
+- No automated access to Webook.
+- No collection or storage of login credentials.
+- No automatic payment or ticket purchase.
+- All booking and payment actions remain under user control.
 
 ## Requirements
 
@@ -33,14 +30,30 @@ A controlled browser automation proof of concept for monitoring the official Web
 
 ## Setup
 
-1. Create and activate a virtual environment.
-2. Install dependencies with `pip install -r requirements.txt`.
-3. Install Chromium with `python -m playwright install chromium`.
+1. Create a virtual environment.
+2. Activate it.
+3. Install dependencies:
 
-## Run Tests
+    pip install -r requirements.txt
 
-`python -m pytest -v`
+4. Install Chromium:
+
+    python -m playwright install chromium
+
+## Run
+
+    python -m app.main
+
+## Tests
+
+    python -m pytest -v
+
+## Reports
+
+Generated session reports are saved in:
+
+reports/booking_report.json
 
 ## Project Status
 
-Phase 0 — Environment and project foundation.
+Phase 1 — Manual assistant core and reporting.

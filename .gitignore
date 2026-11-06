@@ -1,0 +1,24 @@
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Secrets and environment
+.env
+.env.*
+
+# Logs and local data
+logs/
+data/
+*.db
+*.sqlite3
+
+# Browser sessions and authentication
+.playwright/
+.auth/
+storage_state.json
+
+# VS Code
+.vscode/

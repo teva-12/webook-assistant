@@ -1,4 +1,5 @@
 
+from datetime import datetime
 from rich import box
 from rich.align import Align
 from rich.console import Console
@@ -24,10 +25,34 @@ def format_elapsed(seconds: float) -> str:
     return f"{hours:02d}:{minutes:02d}:{secs:02d}"
 
 
+def get_release_info(release_at: str) -> tuple[str, str]:
+    try:
+        release_time = datetime.fromisoformat(release_at)
+        if release_time.tzinfo is None:
+            return "Invalid release timezone", "Unknown"
+
+        local_release = release_time.astimezone()
+        now = datetime.now().astimezone()
+        remaining = (local_release - now).total_seconds()
+
+        release_label = local_release.strftime("%Y-%m-%d %I:%M:%S %p %Z")
+
+        if remaining <= 0:
+            return release_label, "Release time reached"
+
+        return release_label, format_elapsed(remaining)
+
+    except (ValueError, TypeError):
+        return "Invalid release date", "Unknown"
+
+
 def display_dashboard(
     current_stage: str = "Not started",
     elapsed_seconds: float = 0.0,
     status: str = "Ready",
+    event_name: str = "Rashed Al Majid Concert",
+    event_url: str = "",
+    release_at: str = "2026-11-07T17:00:00+03:00",
 ):
     console.clear()
 
@@ -43,6 +68,24 @@ def display_dashboard(
             padding=(1, 2),
         )
     )
+
+    release_label, countdown = get_release_info(release_at)
+
+    event_table = Table(
+        title="EVENT INFORMATION",
+        box=box.ROUNDED,
+        expand=True,
+        border_style="magenta",
+    )
+    event_table.add_column("Detail", style="cyan")
+    event_table.add_column("Value", style="white")
+
+    event_table.add_row("Event", event_name)
+    event_table.add_row("Ticket Release", release_label)
+    event_table.add_row("Time Remaining", f"[bold yellow]{countdown}[/]")
+    event_table.add_row("Official Event Page", event_url or "Not configured")
+
+    console.print(event_table)
 
     status_style = (
         "bold green"
@@ -78,15 +121,9 @@ def display_dashboard(
 
     for stage_key, stage_label in STAGES:
         if current_stage == stage_key:
-            stage_table.add_row(
-                stage_label,
-                "[bold green]● CURRENT[/]",
-            )
+            stage_table.add_row(stage_label, "[bold green]● CURRENT[/]")
         else:
-            stage_table.add_row(
-                stage_label,
-                "[dim]○ NOT ACTIVE[/]",
-            )
+            stage_table.add_row(stage_label, "[dim]○ NOT ACTIVE[/]")
 
     console.print(stage_table)
 
@@ -101,7 +138,7 @@ def display_dashboard(
 
     preferences.add_row("Quantity", "2 tickets")
     preferences.add_row("Preferred Category", "[green]Bronze[/]")
-    preferences.add_row("Fallback Category", "[yellow]Silver — approval required[/]")
+    preferences.add_row("Fallback Category", "[yellow]Silver - approval required[/]")
     preferences.add_row("Adjacent Seats", "Required")
     preferences.add_row("Payment", "[bold red]Manual only[/]")
 
@@ -124,6 +161,6 @@ def display_dashboard(
 
     console.print(
         Align.center(
-            "[dim]Use the numbered menu below to update the session stage.[/]",
+            "[dim]Use the numbered menu below to update the session stage.[/]"
         )
     )

@@ -43,8 +43,8 @@ def display_menu():
     menu.add_row("1", "Ready")
     menu.add_row("2", "Waiting for user")
     menu.add_row("3", "Ticket selection")
-    menu.add_row("4", "Checkout — Safety Stop")
-    menu.add_row("5", "Open Webook event page")
+    menu.add_row("4", "Checkout - Safety Stop")
+    menu.add_row("5", "Open official Webook event page")
     menu.add_row("Q", "Finish session")
 
     console.print(menu)
@@ -79,6 +79,9 @@ def main():
                 if current_stage != BookingStage.CHECKOUT
                 else "Safety Stop"
             ),
+            event_name=settings.event_name,
+            event_url=settings.event_url,
+            release_at=settings.ticket_release_at,
         )
 
         display_menu()
@@ -98,7 +101,7 @@ def main():
 
                 if opened:
                     console.print(
-                        "[bold green]Event page opened in your browser.[/]"
+                        "[bold green]Official event page opened in your browser.[/]"
                     )
                 else:
                     console.print(

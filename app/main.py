@@ -6,7 +6,7 @@ from app.booking.safety_guard import can_continue
 from app.monitoring.stage_tracker import StageTracker
 from app.monitoring.stage_transitions import InvalidTransitionError
 from app.reporting.report_builder import build_report
-from app.reporting.report_writer import save_report
+from app.reporting.report_writer import save_report, save_html_report
 from app.ui.dashboard import display_dashboard
 
 
@@ -77,10 +77,15 @@ def main():
             tracker.stop()
             break
 
+    # Generate reports once, after the session ends.
     report = build_report(tracker.records)
-    report_path = save_report(report)
 
-    print(f"\nSession finished. Report: {report_path}")
+    report_path = save_report(report)
+    html_report_path = save_html_report(report)
+
+    print("\nSession finished successfully.")
+    print(f"JSON Report: {report_path}")
+    print(f"HTML Report: {html_report_path}")
 
 
 if __name__ == "__main__":

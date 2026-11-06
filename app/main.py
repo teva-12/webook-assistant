@@ -1,8 +1,10 @@
+
 from time import monotonic
 
 from app.core.models import BookingStage
 from app.booking.safety_guard import can_continue
 from app.monitoring.stage_tracker import StageTracker
+from app.monitoring.stage_transitions import InvalidTransitionError
 from app.reporting.report_builder import build_report
 from app.reporting.report_writer import save_report
 from app.ui.dashboard import display_dashboard
@@ -29,7 +31,11 @@ def main():
         display_dashboard(
             current_stage=current_stage.value,
             elapsed_seconds=elapsed,
-            status="Tracking" if current_stage != BookingStage.CHECKOUT else "Safety Stop",
+            status=(
+                "Tracking"
+                if current_stage != BookingStage.CHECKOUT
+                else "Safety Stop"
+            ),
         )
 
         print("\n[1] Ready")
@@ -47,16 +53,17 @@ def main():
         next_stage = STAGE_OPTIONS.get(choice)
 
         if next_stage is None:
-          print("Invalid option.")
-          input("Press Enter to continue...")
-          continue
+            print("Invalid option.")
+            input("Press Enter to continue...")
+            continue
 
-        if next_stage == current_stage:
-          print("You are already in this stage.")
-          input("Press Enter to continue...")
-          continue
+        try:
+            tracker.transition(next_stage)
+        except InvalidTransitionError as error:
+            print(error)
+            input("Press Enter to continue...")
+            continue
 
-        tracker.transition(next_stage)
         current_stage = next_stage
         stage_started_at = monotonic()
 

@@ -1,7 +1,9 @@
+
 from dataclasses import dataclass
 from time import monotonic
 
 from app.core.models import BookingStage
+from app.monitoring.stage_transitions import validate_transition
 
 
 @dataclass(frozen=True)
@@ -26,6 +28,8 @@ class StageTracker:
     def transition(self, next_stage: BookingStage) -> StageDuration:
         if self._current_stage is None:
             raise RuntimeError("Tracker has not started.")
+
+        validate_transition(self._current_stage, next_stage)
 
         duration = round(monotonic() - self._started_at, 3)
 
@@ -54,6 +58,10 @@ class StageTracker:
         self._started_at = None
 
         return record
+
+    @property
+    def current_stage(self) -> BookingStage | None:
+        return self._current_stage
 
     @property
     def records(self) -> tuple[StageDuration, ...]:

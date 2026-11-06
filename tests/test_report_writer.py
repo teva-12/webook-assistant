@@ -96,3 +96,36 @@ def test_html_report_handles_empty_data(tmp_path):
     assert report_path.exists()
     assert "No stage data available." in content
     assert "No session activity recorded." in content
+def test_html_report_contains_ticket_evaluation_results(tmp_path):
+    report = sample_report()
+
+    report["ticket_evaluations"] = [
+        {
+            "bronze_available_count": 2,
+            "bronze_adjacent_seats": True,
+            "silver_available_count": 0,
+            "silver_adjacent_seats": False,
+            "recommended_category": "bronze",
+            "result": "approved",
+        },
+        {
+            "bronze_available_count": 0,
+            "bronze_adjacent_seats": False,
+            "silver_available_count": 2,
+            "silver_adjacent_seats": True,
+            "recommended_category": "silver",
+            "result": "approved",
+        },
+    ]
+
+    report_path = save_html_report(report, str(tmp_path))
+    content = report_path.read_text(encoding="utf-8")
+
+    assert "Ticket Evaluation Results" in content
+    assert "Bronze Count" in content
+    assert "Silver Count" in content
+    assert "BRONZE" in content
+    assert "SILVER" in content
+    assert content.count("Approved") == 2
+    assert "No" in content
+    assert "Yes" in content

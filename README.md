@@ -1,101 +1,59 @@
-﻿# Webook Booking Assistant
+# Webook Booking Assistant
 
-A Python proof of concept for manually tracking ticket-booking sessions and generating session reports.
+A local Python assistant with a Telegram interface and a visible Playwright browser for official Webook event pages.
 
-## Current Features
+## Implemented
 
-- Manual booking-stage tracking.
-- Booking preferences for Bronze and Silver ticket categories.
-- Explicit user approval for fallback category selection.
-- Stage duration measurement.
-- Session analytics and stage summaries.
-- JSON session reports.
-- Responsive HTML session reports.
-- Print or save HTML reports as PDF.
-- Safety stop at checkout.
+- Telegram `/start` and `/help` commands.
+- Accepts an official `https://webook.com/.../events/...` link in chat and makes it the active event for that chat. Changing the event clears the previous event's ticket preferences.
+- `/book` collects preferred ticket category, quantity (1–3), adjacency preference, and preferred area/layer.
+- Saves each Telegram chat's state in `data/telegram_sessions.json`.
+- `/open` opens the active event in a visible Chromium browser on the same Windows computer running the bot.
+- `/inspect` reads visible page text and reports category/price pairs when detectable.
+- `/status`, `/cancel`, and `/payment` commands.
+- Currency display is preserved; no currency conversion or invented availability.
 
-## Safety Boundaries
+## Important boundary
 
-This project is a manual session-tracking assistant. It does not automate ticket purchases or interact with Webook automatically.
+The browser is visible. The customer must sign in, complete any official queue/CAPTCHA, inspect the seat map, select seats, verify the order, and pay. The program does not automate seat-map canvas clicks, queue controls, CAPTCHA, order submission, or payment. The `/payment` command only records that the customer says they reached that stage; it does not verify a booking.
 
-- No queue bypass or priority manipulation.
-- No CAPTCHA or anti-bot circumvention.
-- No unauthorized automated access to Webook.
-- No collection or storage of login credentials.
-- No automatic payment or ticket purchase.
-- All booking and payment actions remain under user control.
-- Checkout is a safety stop, not confirmation of a successful purchase.
+## Setup on Windows
 
-## Requirements
+1. Install Python 3.14.
+2. Create a Telegram bot with Telegram's official `@BotFather` and copy its token.
+3. Put the token in `.env`:
 
-- Python 3.14+
-- Playwright
-- Pydantic
-- python-dotenv
-- pytest
-- Rich
+   `TELEGRAM_BOT_TOKEN=YOUR_TOKEN_HERE`
 
-## Setup
+   Keep `TELEGRAM_CHAT_ID=` blank unless you want to restrict the bot to one chat. Never upload `.env` or share the token.
+4. Install Python dependencies:
 
-1. Create a virtual environment:
+   `\.venv\Scripts\python.exe -m pip install -r requirements.txt`
+5. Install Chromium once by running `setup_browser.bat`.
+6. Start the Telegram bot by running `run_telegram_bot.bat`.
+7. Open your bot in Telegram and press Start.
 
-   ```bash
-   python -m venv .venv
-   ```
+The bot and browser must run on the same computer for `/open` and `/inspect`.
 
-2. Activate it.
+## Telegram flow
 
-   **Windows PowerShell:**
-
-   ```powershell
-   .venv\Scripts\Activate.ps1
-   ```
-
-3. Install dependencies:
-
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-4. Install Chromium:
-
-   ```bash
-   python -m playwright install chromium
-   ```
-
-## Configuration
-
-Copy `.env.example` to `.env` and review the configuration values.
-
-Do not commit `.env` or any credentials to version control.
-
-## Run
-
-```bash
-python -m app.main
-```
+1. `/start`
+2. Send the Rashed Al Majid Webook event URL (or another official event URL).
+3. `/book`, then choose category, quantity, adjacency, and type the preferred area/layer.
+4. `/open`; complete sign-in and any queue yourself in the visible browser.
+5. `/inspect` to read the visible category/price text.
+6. Select seats and continue manually on Webook.
+7. Use `/payment` only after you personally reach the payment page. Review and pay directly on Webook.
 
 ## Tests
 
-Run the test suite:
+`\.venv\Scripts\python.exe -m pytest -v`
 
-```bash
-python -m pytest -v
-```
+## Configuration
 
-## Reports
+See `.env.example`. The target event defaults to the Rashed Al Majid event supplied for this project.
 
-After a session ends, the application generates two reports in the `reports/` directory:
 
-- `booking_report.json` — structured session data.
-- `booking_report.html` — a responsive visual dashboard containing session metrics, stage summaries, and a timeline.
+### فحص خريطة المقاعد (معايرة أولية)
 
-Open `booking_report.html` in a browser. Use the **Print / Save PDF** control to print the report or save it as a PDF.
-
-Generated reports are local output files and are not automatically uploaded to GitHub.
-
-## Project Status
-
-**Phase 1 — Manual assistant core and session reporting.**
-
-This is a proof of concept, not a production-ready ticket-booking or purchasing system.
+بعد فتح الفعالية وتسجيل الدخول وإنهاء الـQueue يدويًا، انتقل بنفسك إلى خريطة المقاعد، واختر Layer 2 وكبّر المنطقة المطلوبة. أرسل `/scan` في Telegram. الأمر يحرّك مؤشر الماوس على نقاط متباعدة داخل أكبر Canvas ظاهر ويلتقط النصوص التي يعرضها الموقع عند المرور، دون الضغط على أي مقعد أو اختيار أي شيء. هذه خطوة تشخيصية أولية وليست اختيارًا آليًا للمقاعد؛ يلزم التحقق من صيغة Tooltip الفعلية قبل بناء منطق تحديد المقاعد المتجاورة.

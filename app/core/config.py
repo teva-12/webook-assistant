@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-@dataclass(frozen=True)
+@dataclass
 class Settings:
     event_url: str = os.getenv(
         "EVENT_URL",

@@ -81,11 +81,27 @@ def display_dashboard(
     event_table.add_column("Value", style="white")
 
     event_table.add_row("Event", event_name)
-    event_table.add_row("Ticket Release", release_label)
+    event_table.add_row("Date / time", "Check the official event page")
+    event_table.add_row("Venue", "Check the official event page")
+    event_table.add_row("Configured release", release_label)
     event_table.add_row("Time Remaining", f"[bold yellow]{countdown}[/]")
     event_table.add_row("Official Event Page", event_url or "Not configured")
 
     console.print(event_table)
+
+    ticket_table = Table(
+        title="TICKET CATEGORY POLICY",
+        box=box.ROUNDED,
+        expand=True,
+        border_style="magenta",
+    )
+    ticket_table.add_column("Category", style="cyan")
+    ticket_table.add_column("Client rule", justify="right", style="white")
+    ticket_table.add_row("Bronze", "Preferred")
+    ticket_table.add_row("Silver", "Fallback · approval required")
+    ticket_table.add_row("Quantity", "User-selected: 1–3 tickets")
+    ticket_table.add_row("Prices / other categories", "Read from the live event page (option 7)")
+    console.print(ticket_table)
 
     status_style = (
         "bold green"
@@ -136,18 +152,19 @@ def display_dashboard(
     preferences.add_column("Setting", style="cyan")
     preferences.add_column("Configured Value", style="white")
 
-    preferences.add_row("Quantity", "2 tickets")
+    preferences.add_row("Quantity", "Selected per session (1–3)")
     preferences.add_row("Preferred Category", "[green]Bronze[/]")
     preferences.add_row("Fallback Category", "[yellow]Silver - approval required[/]")
-    preferences.add_row("Adjacent Seats", "Required")
+    preferences.add_row("Area / adjacency", "Selected per session")
     preferences.add_row("Payment", "[bold red]Manual only[/]")
 
     console.print(preferences)
 
     safety_message = (
         "[green]Manual session tracking enabled[/]\n"
-        "[yellow]No automated Webook access or queue bypass[/]\n"
-        "[red]Checkout is a safety stop. Payment remains manual.[/]"
+        "[yellow]Visible persistent browser; sign-in is manual[/]\n"
+        "[yellow]No queue bypass or automated seat selection[/]\n"
+        "[red]Checkout is a handoff. Payment remains manual.[/]"
     )
 
     console.print(

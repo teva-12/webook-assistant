@@ -32,3 +32,7 @@ storage_state.json
 
 # Pytest
 .pytest_cache/
+
+# Persistent browser profile (contains local signed-in session data)
+browser-profile/
+.venv.zip

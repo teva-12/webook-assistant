@@ -75,6 +75,7 @@ def _build_stage_summary(
 def build_report(
     records: Sequence[StageDuration],
     ticket_evaluations: Sequence[dict] | None = None,
+    page_inspections: Sequence[dict] | None = None,
 ) -> dict:
     total_duration = round(
         sum(record.duration_seconds for record in records),
@@ -106,6 +107,7 @@ def build_report(
         "safety_stop_reached": session_status == STATUS_SAFETY_STOP,
         "stage_summary": _build_stage_summary(records, total_duration),
         "ticket_evaluations": list(ticket_evaluations or []),
+        "page_inspections": list(page_inspections or []),
     }
 
     if session_status == STATUS_SAFETY_STOP:

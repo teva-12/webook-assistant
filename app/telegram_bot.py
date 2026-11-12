@@ -69,8 +69,13 @@ def _allowed(update: Update) -> bool:
     chat = update.effective_chat
     if chat is None:
         return False
-    allowed_id = os.getenv("TELEGRAM_CHAT_ID", "").strip()
-    return not allowed_id or str(chat.id) == allowed_id
+    allowed_ids = {
+        value.strip()
+        for value in os.getenv("TELEGRAM_CHAT_ID", "").split(",")
+        if value.strip()
+    }
+    # Fail closed: an empty allowlist must never make a personal bot public.
+    return str(chat.id) in allowed_ids
 
 
 def _event_name(url: str) -> str:
@@ -103,7 +108,10 @@ def _preferences_summary(state: dict) -> str:
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     msg = _reply_target(update)
     if not _allowed(update):
-        await msg.reply_text("البوت غير مفعّل لهذا الحساب.")
+        await msg.reply_text(
+            "البوت غير مفعّل لهذا الحساب. ابعت /id لمعرفة رقم المحادثة، "
+            "ثم أضفه إلى TELEGRAM_CHAT_ID في ملف .env وأعد تشغيل البوت."
+        )
         return
     chat_id = update.effective_chat.id
     state = _user_state(chat_id)
@@ -123,6 +131,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         return
     await _reply_target(update).reply_text(
         "الأوامر المتاحة:\n"
+        "/id — معرفة رقم المحادثة لإعداد صلاحية البوت\n"
         "/start — بدء البوت وعرض الفعالية الحالية\n"
         "/book — تحديد الفئة والعدد والمنطقة وتفضيل التجاور\n"
         "/open — فتح الفعالية في متصفح ظاهر على جهاز تشغيل البوت\n"
@@ -210,8 +219,13 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             await msg.reply_text("اكتب اسم المنطقة أو الطبقة في 100 حرف أو أقل.")
             return
         state.update(preferred_area=text)
-        state["fallback_category"] = "Silver" if state.get("preferred_category") == "Bronze" else None
-        state["step"] = "fallback_approval" if state["fallback_category"] else "ready"
+        can_offer_fallback = (
+            state.get("preferred_category") == "Bronze"
+            and state.get("quantity") == 2
+            and state.get("adjacent") is True
+        )
+        state["fallback_category"] = "Silver" if can_offer_fallback else None
+        state["step"] = "fallback_approval" if can_offer_fallback else "ready"
         _set_user_state(chat_id, state)
         if state["fallback_category"]:
             keyboard = [[
@@ -367,6 +381,24 @@ async def scan_seats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         )
         return
 
+    if quantity == 2 and not adjacent:
+        matches = matching_seats(category)
+        if not matches:
+            await msg.reply_text(
+                f"لم أجد مقاعد {category} متاحة ببيانات واضحة. راجع الخريطة بنفسك."
+            )
+            return
+        lines = [
+            f"• صف {seat.row} - مقعد {seat.number} ({seat.category})"
+            for seat in matches[:20]
+        ]
+        await msg.reply_text(
+            f"مقاعد {category} الفردية التي ظهرت كمتاحة (من غير اشتراط التجاور):\\n"
+            + "\\n".join(lines)
+            + "\\n\\nدي نتائج قراءة أولية؛ اختار مقعدين بنفسك وتأكد من التوفر على Webook."
+        )
+        return
+
     if adjacent and quantity == 2:
         pairs = find_adjacent_visible_pairs(observations, category=category)
 
@@ -399,11 +431,14 @@ async def scan_seats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         )
         return
 
-    await msg.reply_text(
-        "تم رصد مقاعد ببيانات واضحة، لكن الفحص الحالي لا يتحقق من "
-        "وجود مجموعة متجاورة من 3 مقاعد أو أكثر. "
-        "راجع الخريطة يدويًا؛ لم يتم اختيار أي مقعد."
-    )
+    if quantity >= 3:
+        await msg.reply_text(
+            "الفحص الحالي لا يدعم ترشيح مجموعات من 3 مقاعد أو أكثر. "
+            "استخدم صورة /map وراجع المقاعد يدويًا على Webook؛ لم يتم اختيار أي مقعد."
+        )
+        return
+
+    await msg.reply_text("عدد التذاكر أو تفضيل التجاور غير واضح. أعد إعداد الطلب باستخدام /book.")
 async def seat_map_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Send a screenshot of the currently visible seat-map canvas."""
     if not _allowed(update):
@@ -467,12 +502,24 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await _reply_target(update).reply_text("تم إلغاء إعداد الطلب. رابط الفعالية الحالي لم يتغير.")
 
 
+async def show_chat_id(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Expose only the caller's own chat ID so the owner can configure the allowlist."""
+    chat = update.effective_chat
+    if chat is None:
+        return
+    await _reply_target(update).reply_text(
+        f"رقم المحادثة (Chat ID): {chat.id}\\n"
+        "انسخ الرقم إلى TELEGRAM_CHAT_ID في ملف .env ثم أعد تشغيل البوت."
+    )
+
+
 def main() -> None:
     load_dotenv()
     token = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
     if not token:
         raise SystemExit("TELEGRAM_BOT_TOKEN غير موجود. ضعه في ملف .env ثم أعد التشغيل.")
     app = Application.builder().token(token).build()
+    app.add_handler(CommandHandler("id", show_chat_id))
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("help", help_command))
     app.add_handler(CommandHandler("book", book))
@@ -485,6 +532,10 @@ def main() -> None:
     app.add_handler(CommandHandler("cancel", cancel))
     app.add_handler(CallbackQueryHandler(on_callback))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
+    if not os.getenv("TELEGRAM_CHAT_ID", "").strip():
+        log.warning(
+            "TELEGRAM_CHAT_ID is empty. The bot is locked: only /id is available until an allowlist is configured."
+        )
     log.info("Webook Telegram assistant starting")
     app.run_polling(allowed_updates=Update.ALL_TYPES)
 

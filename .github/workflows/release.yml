@@ -1,0 +1,51 @@
+name: Publish Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: "Release tag (for example v1.0.0)"
+        required: true
+        default: "v1.0.0"
+        type: string
+      target_commitish:
+        description: "Branch or commit to release"
+        required: true
+        default: "main"
+        type: string
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    name: Create GitHub release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.target_commitish || github.ref }}
+
+      - name: Validate release tag
+        env:
+          RELEASE_TAG: ${{ inputs.tag_name || github.ref_name }}
+        run: |
+          if ! [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Invalid release tag: $RELEASE_TAG"
+            echo "Expected format: vMAJOR.MINOR.PATCH (example: v1.0.0)"
+            exit 1
+          fi
+
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.tag_name || github.ref_name }}
+          target_commitish: ${{ inputs.target_commitish || github.sha }}
+          name: Webook Booking Assistant ${{ inputs.tag_name || github.ref_name }}
+          generate_release_notes: true
+          draft: false
+          prerelease: false

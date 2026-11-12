@@ -9,7 +9,7 @@
 <p align="center">
   <img alt="Python" src="https://img.shields.io/badge/Python-3.14-3776AB?logo=python&logoColor=white" />
   <img alt="Telegram" src="https://img.shields.io/badge/Interface-Telegram-26A5E4?logo=telegram&logoColor=white" />
-  <img alt="Browser automation" src="https://img.shields.io/badge/Browser-Playwright-2EAD33?logo= playwright&logoColor=white" />
+  <img alt="Browser automation" src="https://img.shields.io/badge/Browser-Playwright-2EAD33?logo=playwright&logoColor=white" />
   <img alt="Platform" src="https://img.shields.io/badge/Platform-Windows-0078D4?logo=windows&logoColor=white" />
 </p>
 
@@ -49,6 +49,7 @@ flowchart TD
 
 | Command | Purpose |
 | --- | --- |
+| `/id` | Show your Telegram chat ID for the access allowlist setup. |
 | `/start` | Start the bot and show the welcome flow. |
 | `/help` | Show available commands and guidance. |
 | `/book` | Set ticket category, quantity, adjacency preference, and preferred area/layer. |
@@ -131,14 +132,14 @@ python -m pip install -r requirements.txt
 
 ### 4. Configure the bot
 
-Create a `.env` file in the project root and add your Telegram bot token:
+Create a `.env` file in the project root. Add your Telegram bot token and your own Telegram chat ID:
 
 ```env
 TELEGRAM_BOT_TOKEN=YOUR_TELEGRAM_BOT_TOKEN
-TELEGRAM_CHAT_ID=
+TELEGRAM_CHAT_ID=YOUR_TELEGRAM_CHAT_ID
 ```
 
-Keep your token private. Do not commit `.env` or share it in screenshots or messages. If you use the chat ID restriction, set `TELEGRAM_CHAT_ID` to the authorized Telegram chat ID.
+Keep your token private. Do not commit `.env` or share it in screenshots or messages. To get your chat ID, start the bot and send `/id`. Copy the number into `TELEGRAM_CHAT_ID` and restart the bot. The bot fails closed: if the allowlist is empty, only `/id` works. You can authorize multiple chats by separating IDs with commas.
 
 ### 5. Install the browser
 
@@ -179,12 +180,20 @@ Check [`.env.example`](.env.example) for the available environment variables and
 ```text
 webook-assistant/
 ├── app/
-│   ├── booking/       # Booking preferences and seat-map helpers
-│   ├── browser/       # Visible browser session
+│   ├── booking/       # Category policy, safety guard, seat-map helpers
+│   ├── browser/       # Visible persistent browser session
 │   ├── core/          # Configuration and shared models
+│   ├── monitoring/    # Page inspection and booking-stage tracking
+│   ├── reporting/     # JSON and HTML reports
+│   ├── ui/            # Terminal dashboard
+│   ├── main.py        # Terminal workflow
 │   └── telegram_bot.py
+├── data/              # Local Telegram state (not committed)
+├── logs/              # Local logs
+├── reports/           # Generated reports
+├── scripts/           # Setup and diagnostic scripts
 ├── tests/             # Automated tests
-├── .env.example       # Example environment configuration
+├── .env.example
 ├── requirements.txt
 ├── setup_browser.bat
 └── run_telegram_bot.bat

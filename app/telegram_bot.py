@@ -65,6 +65,23 @@ def _set_user_state(chat_id: int, state: dict) -> None:
     _save_all_state(all_state)
 
 
+def _reset_booking_preferences(state: dict) -> None:
+    """Start a fresh preference flow without carrying approval from an old request."""
+    for key in (
+        "step",
+        "preferred_category",
+        "quantity",
+        "adjacent",
+        "preferred_area",
+        "fallback_category",
+        "fallback_approved",
+        "handoff_stage",
+    ):
+        state.pop(key, None)
+    state["step"] = "category"
+    state["handoff_reported_by_user"] = False
+
+
 def _allowed(update: Update) -> bool:
     chat = update.effective_chat
     if chat is None:
@@ -151,8 +168,7 @@ async def book(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         return
     chat_id = update.effective_chat.id
     state = _user_state(chat_id)
-    state["step"] = "category"
-    state["handoff_reported_by_user"] = False
+    _reset_booking_preferences(state)
     _set_user_state(chat_id, state)
     keyboard = [[InlineKeyboardButton(c, callback_data=f"cat:{c}")] for c in CATEGORIES]
     await _reply_target(update).reply_text(

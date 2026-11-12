@@ -173,7 +173,7 @@ If you prefer to start the bot from the terminal:
 
 ## Configuration
 
-Check [`.env.example`](.env.example) for the available environment variables and default configuration. The project currently includes a default event configuration for the Rashed Al Majid event; you can provide another supported official Webook event URL in Telegram.
+Check [`.env.example`](.env.example) for the available environment variables and defaults. The default event is the generic example URL and name; send another supported official Webook event URL in Telegram to change it.
 
 ## Project structure
 

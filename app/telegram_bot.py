@@ -11,6 +11,7 @@ import asyncio
 import json
 import logging
 import os
+import tempfile
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from urllib.parse import urlparse
@@ -25,10 +26,13 @@ from telegram.ext import (
 # Load .env before importing modules that read settings at import time.
 load_dotenv()
 from app.browser.launcher import (  # noqa: E402
-    inspect_visible_event_page, open_event_page, scan_visible_seat_map, validate_event_url,
+    capture_seat_map_screenshot, inspect_visible_event_page, open_event_page, scan_visible_seat_map, validate_event_url,
 )
 from app.core.config import settings  # noqa: E402
-
+from app.booking.seat_map import (
+    parse_visible_seat_tooltip,
+    find_adjacent_visible_pairs,
+)
 log = logging.getLogger(__name__)
 _BROWSER_EXECUTOR = ThreadPoolExecutor(max_workers=1, thread_name_prefix="webook-browser")
 DATA_FILE = Path(os.getenv("BOT_STATE_FILE", "data/telegram_sessions.json"))
@@ -80,6 +84,22 @@ def _reply_target(update: Update):
     return update.effective_message
 
 
+def _preferences_summary(state: dict) -> str:
+    fallback = state.get("fallback_category")
+    fallback_text = (
+        f"{fallback} ({'موافق عليه' if state.get('fallback_approved') else 'غير مسموح'})"
+        if fallback else "لا يوجد"
+    )
+    return (
+        "تم تسجيل تفضيلاتك:\n"
+        f"• الفئة الأساسية: {state.get('preferred_category', '—')}\n"
+        f"• العدد: {state.get('quantity', '—')}\n"
+        f"• المنطقة/الطبقة: {state.get('preferred_area', '—')}\n"
+        f"• مقاعد متجاورة: {'نعم' if state.get('adjacent') else 'لا'}\n"
+        f"• البديل: {fallback_text}"
+    )
+
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     msg = _reply_target(update)
     if not _allowed(update):
@@ -108,11 +128,12 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         "/open — فتح الفعالية في متصفح ظاهر على جهاز تشغيل البوت\n"
         "/inspect — قراءة الفئات والأسعار الظاهرة في الصفحة المفتوحة\n"
         "/scan — فحص تلميحات المقاعد الظاهرة بالماوس دون اختيارها\n"
+        "/map — إرسال صورة لخريطة المقاعد الظاهرة\n"
         "/status — عرض الفعالية وملخص الطلب\n"
         "/payment — تسجيل أنك وصلت لمرحلة الدفع\n"
         "/cancel — إلغاء إعداد الطلب\n\n"
         "تسجيل الدخول والـQueue واختيار المقاعد وتأكيد الطلب والدفع تتم بواسطتك على Webook.\n"
-        "بعد الوصول لخريطة المقاعد، استخدم /scan لفحص بيانات المقاعد التي تظهر عند تحريك الماوس."
+        "بعد الوصول لخريطة المقاعد، استخدم /map لصورة الخريطة أو /scan لفحص التلميحات الظاهرة."
     )
 
 
@@ -165,6 +186,15 @@ async def on_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         state.update(adjacent=(data == "adj:yes"), step="region")
         _set_user_state(chat_id, state)
         await query.edit_message_text("اكتب المنطقة أو الطبقة المفضلة (مثال: Layer 2 أو Bronze 2).")
+    elif data.startswith("fallback:") and state.get("step") == "fallback_approval":
+        approved = data == "fallback:yes"
+        state.update(fallback_approved=approved, step="ready")
+        _set_user_state(chat_id, state)
+        await query.edit_message_text(
+            _preferences_summary(state)
+            + ("\nالبديل Silver مسموح بموافقتك فقط." if approved else "\nلن يتم استخدام Silver؛ Bronze فقط.")
+            + "\n\nاستخدم /open لفتح الفعالية."
+        )
 
 
 async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -179,18 +209,22 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         if not text or len(text) > 100:
             await msg.reply_text("اكتب اسم المنطقة أو الطبقة في 100 حرف أو أقل.")
             return
-        state.update(preferred_area=text, step="ready")
-        state["fallback_category"] = "Silver" if state.get("preferred_category") != "Silver" else "Gold"
+        state.update(preferred_area=text)
+        state["fallback_category"] = "Silver" if state.get("preferred_category") == "Bronze" else None
+        state["step"] = "fallback_approval" if state["fallback_category"] else "ready"
         _set_user_state(chat_id, state)
-        await msg.reply_text(
-            "تم تسجيل تفضيلاتك:\n"
-            f"• الفئة: {state['preferred_category']}\n"
-            f"• العدد: {state['quantity']}\n"
-            f"• المنطقة/الطبقة: {text}\n"
-            f"• مقاعد متجاورة: {'نعم' if state['adjacent'] else 'لا'}\n\n"
-            "استخدم /open لفتح الفعالية على جهاز تشغيل البوت. والبديل المقترح "
-            f"{state['fallback_category']} لا يتم اختياره إلا بموافقتك."
-        )
+        if state["fallback_category"]:
+            keyboard = [[
+                InlineKeyboardButton("أوافق على Silver لو Bronze مش متاح", callback_data="fallback:yes"),
+                InlineKeyboardButton("Bronze فقط", callback_data="fallback:no"),
+            ]]
+            await msg.reply_text(
+                "هل توافق على Silver كبديل فقط لو لم يتوفر زوج Bronze متجاور؟\n"
+                "لن يتم اعتماد Silver بدون موافقتك.",
+                reply_markup=InlineKeyboardMarkup(keyboard),
+            )
+        else:
+            await msg.reply_text(_preferences_summary(state) + "\n\nاستخدم /open لفتح الفعالية.")
         return
 
     if "webook.com" not in text.lower():
@@ -256,16 +290,28 @@ async def inspect(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     message += "\n\nظهور الفئة والسعر لا يؤكد وجود مقاعد متاحة أو متجاورة. اختار المقاعد بنفسك على الخريطة."
     await msg.reply_text(message)
 
-
 async def scan_seats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Collect visible seat tooltip text by hover only; never click/select seats."""
+    """Analyze visible seat tooltips without clicking or selecting seats."""
     if not _allowed(update):
         return
+
     msg = _reply_target(update)
+    chat_id = update.effective_chat.id
+    state = _user_state(chat_id)
+
+    category = state.get("preferred_category")
+    quantity = state.get("quantity")
+    adjacent = state.get("adjacent", False)
+
+    if not category or not quantity:
+        await msg.reply_text("جهّز طلبك الأول باستخدام /book.")
+        return
+
     await msg.reply_text(
-        "بفحص خريطة المقاعد بحركة الماوس فقط. الفحص لا يختار أي كرسي. "
-        "تأكد إنك فتحت الخريطة واخترت Layer 2 وكبّرت الجزء المطلوب قبل الفحص."
+        "بفحص التلميحات الظاهرة بحركة الماوس فقط. "
+        "لن يتم الضغط على أي مقعد أو اختياره."
     )
+
     try:
         observations = await asyncio.get_running_loop().run_in_executor(
             _BROWSER_EXECUTOR, scan_visible_seat_map
@@ -273,17 +319,112 @@ async def scan_seats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     except Exception as exc:
         await msg.reply_text(f"تعذر فحص الخريطة: {exc}")
         return
+
     if not observations:
         await msg.reply_text(
-            "لم ألتقط تلميحات مقاعد نصية من المرور بالماوس. قد تكون بيانات المقعد مرسومة داخل Canvas فقط. "
-            "لم يتم الضغط على أي مقعد."
+            "لم أجد تلميحات مقاعد نصية واضحة. "
+            "راجع الخريطة يدويًا أو استخدم /map لعرض صورتها."
         )
         return
-    lines = [f"• {item.text} (موضع تقريبي: {round(item.x)}, {round(item.y)})" for item in observations[:30]]
+
+    seats = [
+        seat
+        for item in observations
+        if (seat := parse_visible_seat_tooltip(item.text)) is not None
+    ]
+
+    if not seats:
+        await msg.reply_text(
+            "لم أجد مقاعد تتضمن رقم الصف ورقم المقعد وحالة توفر صريحة. "
+            "النصوص الظاهرة وحدها لا تكفي لتأكيد التوفر."
+        )
+        return
+
+    def matching_seats(target_category):
+        return [
+            seat for seat in seats
+            if seat.category
+            and seat.category.casefold() == target_category.casefold()
+        ]
+
+    if quantity == 1:
+        matches = matching_seats(category)
+        if not matches:
+            await msg.reply_text(
+                f"لم أجد مقاعد {category} متاحة ببيانات واضحة. "
+                "راجع الخريطة بنفسك."
+            )
+            return
+
+        lines = [
+            f"• صف {seat.row} - مقعد {seat.number} ({seat.category})"
+            for seat in matches[:20]
+        ]
+        await msg.reply_text(
+            f"مقاعد {category} التي ظهرت كمتاحة في النصوص:\n"
+            + "\n".join(lines)
+            + "\n\nدي نتائج قراءة أولية وليست تأكيدًا للحجز."
+        )
+        return
+
+    if adjacent and quantity == 2:
+        pairs = find_adjacent_visible_pairs(observations, category=category)
+
+        if not pairs and category == "Bronze" and state.get("fallback_approved"):
+            pairs = find_adjacent_visible_pairs(
+                observations, category="Silver"
+            )
+            if pairs:
+                category = "Silver"
+
+        if not pairs:
+            await msg.reply_text(
+                f"لم أجد زوجًا مرشحًا من مقعدين متتاليين في صف واحد "
+                f"ضمن فئة {category}."
+                "\nلم أستخدم فئة بديلة بدون موافقتك، ولم يتم اختيار أي مقعد."
+            )
+            return
+
+        lines = [
+            f"• صف {pair.first.row}: "
+            f"مقعد {pair.first.number} و{pair.second.number} "
+            f"({category})"
+            for pair in pairs[:15]
+        ]
+        await msg.reply_text(
+            "أزواج مقاعد مرشحة للمراجعة البصرية:\n"
+            + "\n".join(lines)
+            + "\n\nتتابع أرقام المقاعد لا يثبت التجاور الفعلي؛ "
+            "تأكد من الخريطة بنفسك قبل الاختيار."
+        )
+        return
+
     await msg.reply_text(
-        "النصوص التي ظهرت أثناء المرور بالماوس (من غير اختيار):\n" + "\n".join(lines)
-        + "\n\nدي مرحلة معايرة أولية؛ مش هاعتبر أي مقعد متاح أو متجاور إلا لما تظهر بياناته بوضوح."
+        "تم رصد مقاعد ببيانات واضحة، لكن الفحص الحالي لا يتحقق من "
+        "وجود مجموعة متجاورة من 3 مقاعد أو أكثر. "
+        "راجع الخريطة يدويًا؛ لم يتم اختيار أي مقعد."
     )
+async def seat_map_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Send a screenshot of the currently visible seat-map canvas."""
+    if not _allowed(update):
+        return
+    msg = _reply_target(update)
+    with tempfile.TemporaryDirectory(prefix="webook-map-") as temp_dir:
+        image_path = os.path.join(temp_dir, "visible-seat-map.png")
+        try:
+            await asyncio.get_running_loop().run_in_executor(
+                _BROWSER_EXECUTOR, capture_seat_map_screenshot, image_path
+            )
+            with open(image_path, "rb") as image_file:
+                await msg.reply_photo(
+                    photo=image_file,
+                    caption=(
+                        "صورة من خريطة المقاعد الظاهرة حاليًا.\n"
+                        "الصورة للمراجعة فقط؛ لم يتم اختيار أي مقعد، ولا تثبت التوفر أو التجاور."
+                    ),
+                )
+        except Exception as exc:
+            await msg.reply_text(f"تعذر التقاط صورة الخريطة: {exc}")
 
 
 async def status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -297,6 +438,7 @@ async def status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         f"العدد: {state.get('quantity', '—')}\n"
         f"المنطقة: {state.get('preferred_area', 'لم تُحدد')}\n"
         f"مقاعد متجاورة: {'نعم' if state.get('adjacent') else 'لا/لم يُحدد'}\n"
+        f"بديل Silver: {'موافق عليه' if state.get('fallback_approved') else 'غير مسموح/لم يُحدد'}\n"
         f"وصلت للدفع حسب إفادتك: {'نعم' if state.get('handoff_reported_by_user') else 'لا'}"
     )
 
@@ -319,7 +461,7 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         return
     chat_id = update.effective_chat.id
     state = _user_state(chat_id)
-    for key in ("step", "preferred_category", "fallback_category", "quantity", "adjacent", "preferred_area"):
+    for key in ("step", "preferred_category", "fallback_category", "fallback_approved", "quantity", "adjacent", "preferred_area"):
         state.pop(key, None)
     _set_user_state(chat_id, state)
     await _reply_target(update).reply_text("تم إلغاء إعداد الطلب. رابط الفعالية الحالي لم يتغير.")
@@ -337,6 +479,7 @@ def main() -> None:
     app.add_handler(CommandHandler("open", open_event))
     app.add_handler(CommandHandler("inspect", inspect))
     app.add_handler(CommandHandler("scan", scan_seats))
+    app.add_handler(CommandHandler("map", seat_map_photo))
     app.add_handler(CommandHandler("status", status))
     app.add_handler(CommandHandler("payment", payment_handoff))
     app.add_handler(CommandHandler("cancel", cancel))

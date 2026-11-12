@@ -13,15 +13,15 @@ load_dotenv()
 class Settings:
     event_url: str = os.getenv(
         "EVENT_URL",
-        "https://webook.com/en/events/rashed-almajed-concert-rs27-tickets-783777",
+        "https://webook.com/en/events/example-event",
     )
     event_name: str = os.getenv(
         "EVENT_NAME",
-        "Rashed Al Majid Concert",
+        "Example Event",
     )
     ticket_release_at: str = os.getenv(
         "TICKET_RELEASE_AT",
-        "2026-11-07T17:00:00+03:00",
+        "2027-01-01T17:00:00+03:00",
     )
     log_level: str = os.getenv("LOG_LEVEL", "INFO")
     run_mode: str = os.getenv("RUN_MODE", "manual_assistant")

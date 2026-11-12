@@ -15,7 +15,7 @@ A local Python assistant with a Telegram interface and a visible Playwright brow
 
 ## Important boundary
 
-The browser is visible. The customer must sign in, complete any official queue/CAPTCHA, inspect the seat map, select seats, verify the order, and pay. The program does not automate seat-map canvas clicks, queue controls, CAPTCHA, order submission, or payment. The `/payment` command only records that the customer says they reached that stage; it does not verify a booking.
+The browser is visible. The customer must sign in, complete any official queue/CAPTCHA, choose the layer and zoom, review and select seats, verify the order, and pay. The program does not automate queue controls, CAPTCHA, seat clicks, order submission, or payment. `/scan` is diagnostic only; `/map` shares a screenshot. The `/payment` command only records that the customer says they reached that stage; it does not verify a booking.
 
 ## Setup on Windows
 
@@ -41,9 +41,10 @@ The bot and browser must run on the same computer for `/open` and `/inspect`.
 2. Send the Rashed Al Majid Webook event URL (or another official event URL).
 3. `/book`, then choose category, quantity, adjacency, and type the preferred area/layer.
 4. `/open`; complete sign-in and any queue yourself in the visible browser.
-5. `/inspect` to read the visible category/price text.
-6. Select seats and continue manually on Webook.
-7. Use `/payment` only after you personally reach the payment page. Review and pay directly on Webook.
+5. `/inspect` to read visible category/price text.
+6. On the seat map, choose the layer and zoom manually. Use `/map` to send the visible map to Telegram, or `/scan` to collect visible hover-tooltip text.
+7. Review and select seats manually on Webook; the app does not infer availability or adjacency from canvas pixels.
+8. Use `/payment` only after you personally reach the payment page. Review and pay directly on Webook.
 
 ## Tests
 

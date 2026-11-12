@@ -35,4 +35,6 @@ storage_state.json
 
 # Persistent browser profile (contains local signed-in session data)
 browser-profile/
+
+# Local virtual-environment archives
 .venv.zip

@@ -210,3 +210,12 @@ def scan_visible_seat_map():
     validate_event_url(_page.url)
     from app.booking.seat_map import scan_visible_seat_tooltips
     return scan_visible_seat_tooltips(_page)
+
+
+def capture_seat_map_screenshot(output_path: str):
+    """Capture only the visible seat-map canvas for the user's review."""
+    if _page is None or _page.is_closed():
+        raise RuntimeError("افتح صفحة اختيار المقاعد أولاً من المتصفح.")
+    validate_event_url(_page.url)
+    from app.booking.seat_map import capture_visible_seat_map
+    return capture_visible_seat_map(_page, output_path)

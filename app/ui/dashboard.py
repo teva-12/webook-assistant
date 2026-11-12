@@ -24,7 +24,16 @@ def format_elapsed(seconds: float) -> str:
     hours, minutes = divmod(minutes, 60)
     return f"{hours:02d}:{minutes:02d}:{secs:02d}"
 
+def format_countdown(seconds: float) -> str:
+    total = max(0, int(seconds))
+    days, remainder = divmod(total, 86400)
+    hours, remainder = divmod(remainder, 3600)
+    minutes, secs = divmod(remainder, 60)
 
+    if days:
+        return f"{days}d {hours:02d}:{minutes:02d}:{secs:02d}"
+
+    return f"{hours:02d}:{minutes:02d}:{secs:02d}"
 def get_release_info(release_at: str) -> tuple[str, str]:
     try:
         release_time = datetime.fromisoformat(release_at)

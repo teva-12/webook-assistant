@@ -393,9 +393,9 @@ async def scan_seats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
             for seat in matches[:20]
         ]
         await msg.reply_text(
-            f"مقاعد {category} الفردية التي ظهرت كمتاحة (من غير اشتراط التجاور):\\n"
-            + "\\n".join(lines)
-            + "\\n\\nدي نتائج قراءة أولية؛ اختار مقعدين بنفسك وتأكد من التوفر على Webook."
+            f"مقاعد {category} الفردية التي ظهرت كمتاحة (من غير اشتراط التجاور):\n"
+            + "\n".join(lines)
+            + "\n\nدي نتائج قراءة أولية؛ اختار مقعدين بنفسك وتأكد من التوفر على Webook."
         )
         return
 
@@ -508,7 +508,7 @@ async def show_chat_id(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     if chat is None:
         return
     await _reply_target(update).reply_text(
-        f"رقم المحادثة (Chat ID): {chat.id}\\n"
+        f"رقم المحادثة (Chat ID): {chat.id}\n"
         "انسخ الرقم إلى TELEGRAM_CHAT_ID في ملف .env ثم أعد تشغيل البوت."
     )
 

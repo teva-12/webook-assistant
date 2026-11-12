@@ -11,6 +11,7 @@
   <img alt="Telegram" src="https://img.shields.io/badge/Interface-Telegram-26A5E4?logo=telegram&logoColor=white" />
   <img alt="Browser automation" src="https://img.shields.io/badge/Browser-Playwright-2EAD33?logo=playwright&logoColor=white" />
   <img alt="Platform" src="https://img.shields.io/badge/Platform-Windows-0078D4?logo=windows&logoColor=white" />
+  <a href="https://github.com/teva-12/webook-assistant/actions/workflows/tests.yml"><img alt="Tests" src="https://github.com/teva-12/webook-assistant/actions/workflows/tests.yml/badge.svg" /></a>
 </p>
 
 ## Overview
@@ -174,6 +175,12 @@ If you prefer to start the bot from the terminal:
 ## Configuration
 
 Check [`.env.example`](.env.example) for the available environment variables and defaults. The default event is the generic example URL and name; send another supported official Webook event URL in Telegram to change it.
+
+## Releases
+
+Published versions are available on the [GitHub Releases page](https://github.com/teva-12/webook-assistant/releases). To publish a version, open **Actions → Publish Release → Run workflow**, keep the default tag `v1.0.0`, and run it from `main`. The workflow creates the tag and publishes a release with generated release notes. You can also publish automatically by pushing a version tag such as `v1.0.1`.
+
+See [`CHANGELOG.md`](CHANGELOG.md) for the project change history.
 
 ## Project structure
 
